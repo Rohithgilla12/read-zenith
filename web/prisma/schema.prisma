@@ -1,0 +1,175 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  created_at         DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
+  email              String            @unique
+  name               String?
+  image              String?
+  role               String            @default("user")
+  kindle_email       String?
+  SavedItem          SavedItem[]
+  Folder             Folder[]
+  Tag                Tag[]
+  Bundle             Bundle[]
+  delivery_history   DeliveryHistory[] @relation("UserDeliveries")
+  stripe_customer_id String?           @map("stripe_customer_id")
+  notification_prefs Json              @default("{}") @map("notification_prefs")
+
+  @@map("users")
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+
+  @@map("subscription_tier")
+}
+
+enum SavedItemType {
+  BOOKMARK
+  READING_LIST
+
+  @@map("saved_item_type")
+}
+
+model SavedItem {
+  id           String           @id @default(cuid())
+  type         SavedItemType
+  title        String
+  url          String
+  content      String?          @db.Text
+  summary      String?          @db.Text
+  image_url    String?          @map("image_url")
+  favicon      String?
+  created_at   DateTime         @default(now()) @map("created_at")
+  updated_at   DateTime         @updatedAt @map("updated_at")
+  is_read      Boolean          @default(false) @map("is_read")
+  is_archived  Boolean          @default(false) @map("is_archived")
+  reading_time Int?             @map("reading_time")
+  user_id      String           @map("user_id")
+  user         User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tags         TagsOnItems[]
+  bundles      BundlesOnItems[]
+  folder_id    String?          @map("folder_id")
+  folder       Folder?          @relation(fields: [folder_id], references: [id])
+
+  @@unique([user_id, url])
+  @@index([user_id])
+  @@index([folder_id])
+  @@map("saved_items")
+}
+
+model Folder {
+  id         String      @id @default(cuid())
+  name       String
+  color      String?
+  icon       String?
+  created_at DateTime    @default(now()) @map("created_at")
+  updated_at DateTime    @updatedAt @map("updated_at")
+  user_id    String      @map("user_id")
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent_id  String?     @map("parent_id")
+  parent     Folder?     @relation("FolderHierarchy", fields: [parent_id], references: [id])
+  children   Folder[]    @relation("FolderHierarchy")
+  items      SavedItem[]
+
+  @@unique([user_id, name, parent_id])
+  @@index([user_id])
+  @@index([parent_id])
+  @@map("folders")
+}
+
+model Tag {
+  id         String        @id @default(cuid())
+  name       String
+  color      String?
+  created_at DateTime      @default(now()) @map("created_at")
+  user_id    String        @map("user_id")
+  user       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items      TagsOnItems[]
+
+  @@unique([user_id, name])
+  @@index([user_id])
+  @@map("tags")
+}
+
+model TagsOnItems {
+  item_id     String    @map("item_id")
+  item        SavedItem @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  tag_id      String    @map("tag_id")
+  tag         Tag       @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  assigned_at DateTime  @default(now()) @map("assigned_at")
+
+  @@id([item_id, tag_id])
+  @@index([tag_id])
+  @@index([item_id])
+  @@map("tags_on_items")
+}
+
+model Bundle {
+  id         String            @id @default(cuid())
+  name       String
+  created_at DateTime          @default(now()) @map("created_at")
+  updated_at DateTime          @updatedAt @map("updated_at")
+  user_id    String            @map("user_id")
+  user       User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items      BundlesOnItems[]
+  deliveries DeliveryHistory[] @relation("BundleDeliveries")
+
+  @@index([user_id])
+  @@map("bundles")
+}
+
+model BundlesOnItems {
+  bundle_id String    @map("bundle_id")
+  bundle    Bundle    @relation(fields: [bundle_id], references: [id], onDelete: Cascade)
+  item_id   String    @map("item_id")
+  item      SavedItem @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  added_at  DateTime  @default(now()) @map("added_at")
+
+  @@id([bundle_id, item_id])
+  @@index([bundle_id])
+  @@index([item_id])
+  @@map("bundles_on_items")
+}
+
+model DeliveryHistory {
+  id         String         @id @default(cuid())
+  created_at DateTime       @default(now()) @map("created_at")
+  status     DeliveryStatus
+  email_to   String         @map("email_to")
+  epub_url   String?        @map("epub_url")
+  error_msg  String?        @map("error_msg")
+  bundle_id  String?        @map("bundle_id")
+  bundle     Bundle?        @relation("BundleDeliveries", fields: [bundle_id], references: [id], onDelete: SetNull)
+  user_id    String         @map("user_id")
+  user       User           @relation("UserDeliveries", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([bundle_id])
+  @@map("delivery_history")
+}
+
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+
+  @@map("delivery_status")
+}

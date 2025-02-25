@@ -1,3 +1,4 @@
+import { Database } from "@/types/database.types";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -12,7 +13,7 @@ export const updateSession = async (request: NextRequest) => {
       },
     });
 
-    const supabase = createServerClient(
+    const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -22,13 +23,13 @@ export const updateSession = async (request: NextRequest) => {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value }) =>
-              request.cookies.set(name, value),
+              request.cookies.set(name, value)
             );
             response = NextResponse.next({
               request,
             });
             cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options),
+              response.cookies.set(name, value, options)
             );
           },
         },
@@ -38,6 +39,29 @@ export const updateSession = async (request: NextRequest) => {
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const user = await supabase.auth.getUser();
+
+    if (user.data.user?.email) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", user.data.user?.email)
+        .single();
+
+      if (userData) {
+        if (request.nextUrl.pathname.startsWith("/onboarding")) {
+          return NextResponse.redirect(new URL("/protected", request.url));
+        }
+        return response;
+      }
+
+      if (userData && request.nextUrl.pathname.startsWith("/onboarding")) {
+        return NextResponse.redirect(new URL("/protected", request.url));
+      } else if (
+        !userData && !request.nextUrl.pathname.startsWith("/onboarding")
+      ) {
+        return NextResponse.redirect(new URL("/protected", request.url));
+      }
+    }
 
     // protected routes
     if (request.nextUrl.pathname.startsWith("/protected") && user.error) {

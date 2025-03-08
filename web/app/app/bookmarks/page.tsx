@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { BookmarkIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import Link from "next/link";
 // Mock data for bookmarks
 const mockBookmarks = [
   {
@@ -71,6 +71,7 @@ export default async function BookmarksPage() {
             Manage your saved articles
           </p>
         </div>
+        <Link href="/app/bookmarks/create">Add Bookmark</Link>
         <Button className="flex items-center gap-2">
           <PlusIcon size={16} />
           Add Bookmark

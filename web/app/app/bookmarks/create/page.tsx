@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { createId } from "@paralleldrive/cuid2";
 import { redirect } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const createBookmarkSchema = z.object({
   title: z.string().optional(),
@@ -36,32 +38,48 @@ export default function CreateBookmarkPage() {
 
   const supabase = createClient();
 
-  const onSubmit = async (data: z.infer<typeof createBookmarkSchema>) => {
-    const { data: user } = await supabase.auth.getUser();
+  const { mutate: createBookmark, isPending } = useMutation({
+    mutationFn: async (data: z.infer<typeof createBookmarkSchema>) => {
+      const { data: user } = await supabase.auth.getUser();
 
-    const metadata = await fetch(`https://api.dub.co/metatags?url=${data.url}`);
+      const metadata = await fetch(
+        `https://api.dub.co/metatags?url=${data.url}`
+      );
 
-    const metadataJson = await metadata.json();
+      const metadataJson = await metadata.json();
 
-    console.log(metadataJson);
-    //  Add this bookmark to the database
+      const { error } = await supabase.from("saved_items").insert({
+        id: createId(),
+        title: metadataJson.title,
+        url: data.url,
+        image_url: metadataJson.image,
+        user_id: user.user!.id,
+        type: "BOOKMARK",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
-    const { error } = await supabase.from("saved_items").insert({
-      id: createId(),
-      title: metadataJson.title,
-      url: data.url,
-      image_url: metadataJson.image,
-      user_id: user.user!.id,
-      type: "BOOKMARK",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Bookmark created");
 
-    if (error) {
-      console.error(error);
-    }
+      setTimeout(() => {
+        redirect("/app/bookmarks");
+      }, 1000);
+    },
+    onError: (error) => {
+      toast.error("Failed to create bookmark", {
+        duration: 2000,
+        description: error.message,
+      });
+    },
+  });
 
-    redirect("/app/bookmarks");
+  const onSubmit = (data: z.infer<typeof createBookmarkSchema>) => {
+    createBookmark(data);
   };
 
   return (
@@ -75,12 +93,20 @@ export default function CreateBookmarkPage() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>URL</FormLabel>
-                <Input {...field} />
+                <FormDescription>
+                  Enter the URL of the bookmark you want to create.
+                </FormDescription>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button type="submit">Create</Button>
+          <Button disabled={isPending} type="submit">
+            {isPending ? "Creating..." : "Create"}
+          </Button>
         </form>
       </Form>
     </div>

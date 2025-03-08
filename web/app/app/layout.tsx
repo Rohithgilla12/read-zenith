@@ -11,7 +11,6 @@ import {
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +26,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import HeaderAuth from "@/components/header-auth";
 
 export default async function AppLayout({
   children,
@@ -52,7 +52,7 @@ export default async function AppLayout({
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full">
         <Sidebar className="fixed left-0 top-0 h-screen z-20">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-2 py-3">
@@ -154,13 +154,32 @@ export default async function AppLayout({
 
         <SidebarInset className="flex flex-col min-h-screen">
           <header className="sticky top-0 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] z-10">
-            <SidebarTrigger className="lg:hidden" />
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="lg" />
+              <h1 className="text-xl font-bold">ReadZenith</h1>
+            </div>
+
             <div className="ml-auto flex items-center gap-2">
-              <ThemeSwitcher />
+              <HeaderAuth />
             </div>
           </header>
 
           <main className="flex-1 overflow-auto p-4">{children}</main>
+          <footer className="sticky bottom-0 w-full flex items-center justify-center border-t bg-background z-10 py-4">
+            <div className="max-w-5xl w-full mx-auto text-center text-xs flex justify-between px-5">
+              <p>
+                Powered by{" "}
+                <a
+                  href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
+                  target="_blank"
+                  className="font-bold hover:underline"
+                  rel="noreferrer"
+                >
+                  Supabase
+                </a>
+              </p>
+            </div>
+          </footer>
         </SidebarInset>
       </div>
     </SidebarProvider>
